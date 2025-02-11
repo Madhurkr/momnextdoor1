@@ -1,99 +1,146 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Modal,
+  ActivityIndicator,
+} from "react-native";
+import * as DocumentPicker from "expo-document-picker";
+import PhoneInput from "react-native-phone-number-input";
 
-const SignUpScreen = ({ navigation }: any) => {
+const SignUpScreen = ({ navigation }) => {
   const [name, setName] = useState("");
   const [country, setCountry] = useState("");
+  const [contactMethod, setContactMethod] = useState(""); // "Phone" or "Email"
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [userType, setUserType] = useState(""); // "Cook" or "Customer"
+  const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [document, setDocument] = useState(null);
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePassword = (password) => {
+    return password.length >= 5 && /\d/.test(password);
+  };
 
   const handleSignUp = () => {
-    if (!name || !country || !phoneNumber || !userType) {
-      Alert.alert("Error", "All fields are required!");
+    if (!name || !country || (!phoneNumber && !email) || !userType || !password || !confirmPassword) {
+      Alert.alert("Error", "All fields are required! (Email or Phone number must be provided)");
       return;
     }
-    Alert.alert("Success", "Account created successfully!");
-    navigation.navigate("Login");
+    if (contactMethod === "Email" && !validateEmail(email)) {
+      Alert.alert("Error", "Please enter a valid email address.");
+      return;
+    }
+    if (!validatePassword(password)) {
+      Alert.alert("Error", "Password must be at least 5 characters long and contain a number.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match!");
+      return;
+    }
+    
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      setModalVisible(true);
+      
+      const otp = Math.floor(100000 + Math.random() * 900000); // Generate 6-digit OTP
+      console.log("User Info:", { name, country, phoneNumber, email, userType, otp, document });
+    }, 2000);
+  };
+
+  const pickDocument = async () => {
+    let result = await DocumentPicker.getDocumentAsync({
+      type: "application/pdf",
+    });
+    if (!result.canceled) {
+      setDocument(result);
+      Alert.alert("Success", "Document uploaded successfully!");
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* App Title */}
       <View style={styles.header}>
         <Text style={styles.appName}>MomNextDoor</Text>
         <Text style={styles.tagline}>Home-cooked Meals at your place</Text>
       </View>
 
-      {/* Name Input */}
-      <TextInput
-        style={styles.input}
-        placeholder="Full Name"
-        value={name}
-        onChangeText={setName}
-      />
+      <TextInput style={styles.input} placeholder="Full Name" value={name} onChangeText={setName} />
+      <TextInput style={styles.input} placeholder="Country Region" value={country} onChangeText={setCountry} />
+      
+      <View style={styles.toggleContainer}>
+        {contactMethod !== "Phone" && (
+          <TouchableOpacity style={styles.toggleButton} onPress={() => setContactMethod("Phone")}> 
+            <Text style={styles.toggleText}>Use Phone</Text>
+          </TouchableOpacity>
+        )}
+        {contactMethod !== "Email" && (
+          <TouchableOpacity style={styles.toggleButton} onPress={() => setContactMethod("Email")}> 
+            <Text style={styles.toggleText}>Use Email</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
-      {/* Country & Phone Number Input */}
-      <TextInput
-        style={styles.input}
-        placeholder="Country Region"
-        value={country}
-        onChangeText={setCountry}
-      />
+      {contactMethod === "Phone" && (
+        <PhoneInput defaultValue={phoneNumber} defaultCode="US" layout="first" onChangeFormattedText={setPhoneNumber} />
+      )}
+      {contactMethod === "Email" && (
+        <TextInput style={styles.input} placeholder="Email" keyboardType="email-address" value={email} onChangeText={setEmail} />
+      )}
 
-      <TextInput
-        style={styles.input}
-        placeholder="Phone Number"
-        keyboardType="phone-pad"
-        value={phoneNumber}
-        onChangeText={setPhoneNumber}
-      />
+      <TextInput style={styles.input} placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
+      <TextInput style={styles.input} placeholder="Confirm Password" secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} />
 
-      {/* User Type Selection */}
       <View style={styles.userTypeContainer}>
-        <TouchableOpacity
-          style={[styles.userTypeButton, userType === "Cook" ? styles.selected : null]}
-          onPress={() => setUserType("Cook")}
-        >
-          <Text style={styles.userTypeText}>Cook</Text>
+        <TouchableOpacity style={[styles.userTypeButton, userType === "Cook" ? styles.selected : null]} onPress={() => setUserType("Cook")}>
+          <Text style={styles.toggleText}>I am a Cook</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.userTypeButton, userType === "Customer" ? styles.selected : null]}
-          onPress={() => setUserType("Customer")}
-        >
-          <Text style={styles.userTypeText}>Customer</Text>
+        <TouchableOpacity style={[styles.userTypeButton, userType === "Customer" ? styles.selected : null]} onPress={() => setUserType("Customer")}>
+          <Text style={styles.toggleText}>I am a Customer</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Document Upload for Cooks */}
       {userType === "Cook" && (
-        <TouchableOpacity style={styles.uploadButton}>
+        <TouchableOpacity style={styles.uploadButton} onPress={pickDocument}>
           <Text style={styles.uploadText}>Upload Documents</Text>
         </TouchableOpacity>
       )}
 
-      {/* Sign-Up Button */}
-      <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp}>
-        <Text style={styles.signUpText}>Sign Up</Text>
+      <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.signUpText}>Sign Up</Text>}
       </TouchableOpacity>
 
-      {/* OR Separator */}
-      <Text style={styles.orText}>or</Text>
-
-      {/* Social Media Login */}
-      <View style={styles.socialLoginContainer}>
-        <Text style={styles.socialLoginText}>Social Media Login</Text>
-      </View>
-
-      {/* Navigation to Login */}
-      <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-        <Text style={styles.loginText}>Already have an account? Log in</Text>
-      </TouchableOpacity>
+      <Modal animationType="slide" transparent={true} visible={modalVisible}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>Check your email and phone for a verification code!</Text>
+            <TouchableOpacity style={styles.modalButton} onPress={() => setModalVisible(false)}>
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
-export default SignUpScreen;
+
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -124,6 +171,30 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 15,
   },
+  toggleContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    width: "100%",
+    marginBottom: 15,
+  },
+  toggleButton: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 10,
+    width: "45%",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+  },
+  selected: {
+    backgroundColor: "#ff6347",
+    borderColor: "#ff6347",
+  },
+  toggleText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
   userTypeContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -135,17 +206,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 10,
-    width: "40%",
+    width: "45%",
     alignItems: "center",
-  },
-  selected: {
-    backgroundColor: "#ff6347",
-    borderColor: "#ff6347",
-  },
-  userTypeText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
+    backgroundColor: "#f0f0f0",
   },
   uploadButton: {
     backgroundColor: "#ddd",
@@ -170,28 +233,36 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
-  orText: {
-    fontSize: 16,
-    marginVertical: 10,
-    fontStyle: "italic",
-  },
-  socialLoginContainer: {
-    width: "100%",
-    paddingVertical: 15,
-    backgroundColor: "#ddd",
-    borderRadius: 10,
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 15,
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
-  socialLoginText: {
-    fontSize: 16,
-    fontStyle: "italic",
+  modalContent: {
+    backgroundColor: "white",
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+    alignItems: "center",
   },
-  loginText: {
+  modalText: {
+    fontSize: 18,
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  modalButton: {
+    backgroundColor: "#ff6347",
+    padding: 10,
+    borderRadius: 5,
+    width: "50%",
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#fff",
     fontSize: 16,
-    fontStyle: "italic",
-    color: "#777",
   },
 });
 
 
+export default SignUpScreen;
