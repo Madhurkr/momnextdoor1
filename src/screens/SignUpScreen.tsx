@@ -11,6 +11,10 @@ import {
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import PhoneInput from "react-native-phone-number-input";
+import axios from "axios";
+
+// Set API URL using your local IP
+const API_URL = "http://192.168.0.21:5002/api/users";
 
 const SignUpScreen = ({ navigation }) => {
   const [name, setName] = useState("");
@@ -22,19 +26,15 @@ const SignUpScreen = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [userType, setUserType] = useState(""); // "Cook" or "Customer"
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [userId, setUserId] = useState(null);
   const [document, setDocument] = useState(null);
 
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validatePassword = (password) => password.length >= 5 && /\d/.test(password);
 
-  const validatePassword = (password) => {
-    return password.length >= 5 && /\d/.test(password);
-  };
-
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (!name || !country || (!phoneNumber && !email) || !userType || !password || !confirmPassword) {
       Alert.alert("Error", "All fields are required! (Email or Phone number must be provided)");
       return;
@@ -51,24 +51,81 @@ const SignUpScreen = ({ navigation }) => {
       Alert.alert("Error", "Passwords do not match!");
       return;
     }
-    
+
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("country", country);
+    formData.append("contact_method", contactMethod);
+    formData.append("phone_number", contactMethod === "Phone" ? phoneNumber : "");
+    formData.append("email", contactMethod === "Email" ? email : "");
+    formData.append("password", password);
+    formData.append("user_type", userType);
+    if (document) {
+      formData.append("document", {
+        uri: document.uri,
+        type: document.mimeType,
+        name: document.name,
+      });
+    }
+
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await axios.post(`${API_URL}/signup`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       setLoading(false);
-      setModalVisible(true);
-      
-      const otp = Math.floor(100000 + Math.random() * 900000); // Generate 6-digit OTP
-      console.log("User Info:", { name, country, phoneNumber, email, userType, otp, document });
-    }, 2000);
+      setUserId(response.data.userId);
+      setOtpModalVisible(true);
+    } catch (error) {
+      setLoading(false);
+      console.error("Signup Error:", error);
+      Alert.alert("Signup Failed", error.response?.data?.message || "Cannot connect to the server. Check your network.");
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!otp) {
+      Alert.alert("Error", "Please enter the OTP sent to your email/phone.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API_URL}/verify-otp`, {
+        userId,
+        otp,
+      });
+
+      setLoading(false);
+      Alert.alert("Success", "OTP verified successfully! Account is now active.");
+      setOtpModalVisible(false);
+      navigation.navigate("Welcome"); // Redirect to Login screen
+    } catch (error) {
+      setLoading(false);
+      console.error("OTP Verification Error:", error);
+      Alert.alert("OTP Verification Failed", error.response?.data?.message || "Invalid OTP.");
+    }
   };
 
   const pickDocument = async () => {
-    let result = await DocumentPicker.getDocumentAsync({
-      type: "application/pdf",
-    });
-    if (!result.canceled) {
-      setDocument(result);
-      Alert.alert("Success", "Document uploaded successfully!");
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*", // Allows any file type
+        copyToCacheDirectory: true,
+      });
+  
+      if (result.canceled) {
+        Alert.alert("Cancelled", "No document was selected.");
+        return;
+      }
+  
+      setDocument(result.assets[0]); 
+      Alert.alert("Success", `Document uploaded: ${result.assets[0].name}`);
+      console.log("Selected Document:", result.assets[0]); 
+    } catch (error) {
+      console.error("Document Picker Error:", error);
+      Alert.alert("Error", "Failed to pick document.");
     }
   };
 
@@ -81,18 +138,14 @@ const SignUpScreen = ({ navigation }) => {
 
       <TextInput style={styles.input} placeholder="Full Name" value={name} onChangeText={setName} />
       <TextInput style={styles.input} placeholder="Country Region" value={country} onChangeText={setCountry} />
-      
+
       <View style={styles.toggleContainer}>
-        {contactMethod !== "Phone" && (
-          <TouchableOpacity style={styles.toggleButton} onPress={() => setContactMethod("Phone")}> 
-            <Text style={styles.toggleText}>Use Phone</Text>
-          </TouchableOpacity>
-        )}
-        {contactMethod !== "Email" && (
-          <TouchableOpacity style={styles.toggleButton} onPress={() => setContactMethod("Email")}> 
-            <Text style={styles.toggleText}>Use Email</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={styles.toggleButton} onPress={() => setContactMethod("Phone")}>
+          <Text style={styles.toggleText}>Use Phone</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.toggleButton} onPress={() => setContactMethod("Email")}>
+          <Text style={styles.toggleText}>Use Email</Text>
+        </TouchableOpacity>
       </View>
 
       {contactMethod === "Phone" && (
@@ -105,6 +158,9 @@ const SignUpScreen = ({ navigation }) => {
       <TextInput style={styles.input} placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
       <TextInput style={styles.input} placeholder="Confirm Password" secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} />
 
+      <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.signUpText}>Sign Up</Text>}
+      </TouchableOpacity>
       <View style={styles.userTypeContainer}>
         <TouchableOpacity style={[styles.userTypeButton, userType === "Cook" ? styles.selected : null]} onPress={() => setUserType("Cook")}>
           <Text style={styles.toggleText}>I am a Cook</Text>
@@ -120,16 +176,13 @@ const SignUpScreen = ({ navigation }) => {
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.signUpText}>Sign Up</Text>}
-      </TouchableOpacity>
-
-      <Modal animationType="slide" transparent={true} visible={modalVisible}>
+      <Modal animationType="slide" transparent={true} visible={otpModalVisible}>
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalText}>Check your email and phone for a verification code!</Text>
-            <TouchableOpacity style={styles.modalButton} onPress={() => setModalVisible(false)}>
-              <Text style={styles.modalButtonText}>OK</Text>
+            <Text style={styles.modalText}>Enter OTP sent to your email/phone:</Text>
+            <TextInput style={styles.input} placeholder="Enter OTP" keyboardType="numeric" value={otp} onChangeText={setOtp} />
+            <TouchableOpacity style={styles.modalButton} onPress={handleVerifyOTP}>
+              <Text style={styles.modalButtonText}>Verify OTP</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -137,6 +190,21 @@ const SignUpScreen = ({ navigation }) => {
     </View>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

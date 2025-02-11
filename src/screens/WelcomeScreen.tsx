@@ -1,71 +1,114 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-native";
-import RNPickerSelect from "react-native-picker-select";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 
-const countries = [
-  { label: "United States (+1)", value: "+1" },
-  { label: "Canada (+1)", value: "+1" },
-  { label: "United Kingdom (+44)", value: "+44" },
-  { label: "India (+91)", value: "+91" },
-  { label: "Australia (+61)", value: "+61" },
-  { label: "Germany (+49)", value: "+49" },
-  { label: "France (+33)", value: "+33" },
-  { label: "Brazil (+55)", value: "+55" },
-];
+const API_URL = "http://192.168.0.21:5002/api/users"; // Replace with your API
 
 const WelcomeScreen = ({ navigation }) => {
-  const [phoneCode, setPhoneCode] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [contactMethod, setContactMethod] = useState("Email"); // Default to email login
+  const [identifier, setIdentifier] = useState(""); // Email or Phone Number
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (!phoneCode || !phoneNumber) {
-      alert("Please select a country code and enter a phone number.");
+  useEffect(() => {
+    checkLoginStatus();
+  }, []);
+
+  const checkLoginStatus = async () => {
+    const userToken = await AsyncStorage.getItem("userToken");
+    if (userToken) {
+      navigation.navigate("Home"); // ✅ Ensure "Home" exists in `AppNavigator.js`
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!identifier || !password) {
+      Alert.alert("Error", "Both fields are required!");
       return;
     }
-    alert(`Logging in with ${phoneCode} ${phoneNumber}...`);
+
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API_URL}/login`, {
+        identifier,
+        password,
+      });
+
+      await AsyncStorage.setItem("userToken", response.data.token);
+      await AsyncStorage.setItem("userId", response.data.userId.toString());
+
+      setLoading(false);
+      Alert.alert("Success", "Login successful!");
+      navigation.navigate("Home"); // ✅ Redirect to HomeScreen after login
+    } catch (error) {
+      setLoading(false);
+      console.error("Login Error:", error);
+      Alert.alert("Login Failed", error.response?.data?.message || "Invalid credentials");
+    }
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.appName}>MomNextDoor</Text>
-        <Text style={styles.tagline}>Home-cooked Meals at your place</Text>
-      </View>
+      <Text style={styles.appName}>MomNextDoor</Text>
+      <Text style={styles.tagline}>Home-cooked Meals at your place</Text>
 
-      <Text style={styles.label}>Country Code</Text>
-      <View style={styles.pickerContainer}>
-        <RNPickerSelect
-          onValueChange={(value) => setPhoneCode(value)}
-          items={countries}
-          placeholder={{ label: "Select your country code...", value: null }}
-          style={{
-            inputIOS: styles.pickerInput,
-            inputAndroid: styles.pickerInput,
+      {/* Toggle Between Email & Phone Login */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleButton, contactMethod === "Email" ? styles.selected : null]}
+          onPress={() => {
+            setContactMethod("Email");
+            setIdentifier("");
           }}
-        />
+        >
+          <Text style={styles.toggleText}>Login with Email</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleButton, contactMethod === "Phone" ? styles.selected : null]}
+          onPress={() => {
+            setContactMethod("Phone");
+            setIdentifier("");
+          }}
+        >
+          <Text style={styles.toggleText}>Login with Phone</Text>
+        </TouchableOpacity>
       </View>
 
-      <Text style={styles.label}>Phone Number</Text>
+      {/* Input for Email or Phone */}
       <TextInput
         style={styles.input}
-        placeholder="Enter phone number"
-        keyboardType="phone-pad"
-        value={phoneNumber}
-        onChangeText={setPhoneNumber}
+        placeholder={contactMethod === "Email" ? "Enter Email" : "Enter Phone Number"}
+        keyboardType={contactMethod === "Email" ? "email-address" : "phone-pad"}
+        value={identifier}
+        onChangeText={setIdentifier}
       />
 
-      <TouchableOpacity style={styles.continueButton} onPress={handleLogin}>
-        <Text style={styles.continueText}>Continue</Text>
+      {/* Password Input */}
+      <TextInput
+        style={styles.input}
+        placeholder="Enter Password"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+
+      {/* Login Button */}
+      <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginText}>Login</Text>}
       </TouchableOpacity>
 
-      <Text style={styles.orText}>or</Text>
-
-      <View style={styles.socialLoginContainer}>
-        <Text style={styles.socialLoginText}>Social Media Login</Text>
-      </View>
-
+      {/* Signup Link */}
       <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
-        <Text style={styles.signupText}>Don't have a login? Sign up</Text>
+        <Text style={styles.signupText}>Don't have an account? Sign up</Text>
       </TouchableOpacity>
     </View>
   );
@@ -81,78 +124,61 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#fff",
   },
-  header: {
-    alignItems: "center",
-    marginBottom: 30,
-  },
   appName: {
     fontSize: 28,
     fontWeight: "bold",
+    marginBottom: 10,
   },
   tagline: {
     fontSize: 16,
     fontStyle: "italic",
     color: "#777",
+    marginBottom: 30,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 5,
-    alignSelf: "flex-start",
-  },
-  pickerContainer: {
+  toggleContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
     width: "100%",
+    marginBottom: 15,
+  },
+  toggleButton: {
+    padding: 12,
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    backgroundColor: "#f9f9f9",
+    width: "45%",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
   },
-  pickerInput: {
+  selected: {
+    backgroundColor: "#ff6347",
+    borderColor: "#ff6347",
+  },
+  toggleText: {
     fontSize: 16,
+    fontWeight: "bold",
     color: "#333",
   },
   input: {
     width: "100%",
-    height: 50,
+    padding: 12,
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 10,
-    paddingHorizontal: 15,
-    fontSize: 16,
     marginBottom: 15,
   },
-  continueButton: {
+  loginButton: {
     width: "100%",
     paddingVertical: 12,
-    borderWidth: 2,
-    borderColor: "#ffcc00",
+    backgroundColor: "#ff6347",
     alignItems: "center",
     borderRadius: 10,
     marginBottom: 10,
   },
-  continueText: {
+  loginText: {
+    color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
-  },
-  orText: {
-    fontSize: 16,
-    marginVertical: 10,
-    fontStyle: "italic",
-  },
-  socialLoginContainer: {
-    width: "100%",
-    paddingVertical: 15,
-    backgroundColor: "#ddd",
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  socialLoginText: {
-    fontSize: 16,
-    fontStyle: "italic",
   },
   signupText: {
     fontSize: 16,
