@@ -1,8 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Button, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const HomeScreen = ({ navigation }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   useEffect(() => {
     checkLoginStatus();
   }, []);
@@ -11,7 +13,9 @@ const HomeScreen = ({ navigation }) => {
   const checkLoginStatus = async () => {
     const userToken = await AsyncStorage.getItem("userToken");
     if (!userToken) {
-      navigation.navigate("Welcome"); // ✅ Redirect to Login if not logged in
+      navigation.reset({ index: 0, routes: [{ name: "Welcome" }] }); // ✅ Reset stack to prevent going back
+    } else {
+      setIsAuthenticated(true);
     }
   };
 
@@ -20,16 +24,18 @@ const HomeScreen = ({ navigation }) => {
     await AsyncStorage.removeItem("userToken");
     await AsyncStorage.removeItem("userId");
     Alert.alert("Logged Out", "You have been logged out successfully.");
-    navigation.navigate("Welcome"); // ✅ Redirect to Login after logout
+    navigation.navigate("Welcome"); // ✅ Redirect to Login and clear back stack
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome to Home Screen</Text>
-
-      {/* Logout Button */}
-      <Button title="Logout" onPress={handleLogout} color="red" />
-      <Button title="Logout" onPress={navigation.navigate("Welcome")} color="red" />
+      {isAuthenticated ? (
+        <>
+          <Text style={styles.title}>Welcome to Home Screen</Text>
+          {/* Logout Button */}
+          <Button title="Logout" onPress={handleLogout} color="red" />
+        </>
+      ) : null}
     </View>
   );
 };

@@ -26,7 +26,8 @@ const WelcomeScreen = ({ navigation }) => {
   const checkLoginStatus = async () => {
     const userToken = await AsyncStorage.getItem("userToken");
     if (userToken) {
-      navigation.navigate("Home"); // ✅ Ensure "Home" exists in `AppNavigator.js`
+       navigation.reset({ index: 0, routes: [{ name: "Home" }] }); // ✅ Ensure "Home" exists in `AppNavigator.js`
+      //navigation.navigate("Home");
     }
   };
 
@@ -35,26 +36,31 @@ const WelcomeScreen = ({ navigation }) => {
       Alert.alert("Error", "Both fields are required!");
       return;
     }
-
+  
     setLoading(true);
     try {
       const response = await axios.post(`${API_URL}/login`, {
         identifier,
         password,
       });
-
+  
       await AsyncStorage.setItem("userToken", response.data.token);
       await AsyncStorage.setItem("userId", response.data.userId.toString());
-
+  
       setLoading(false);
       Alert.alert("Success", "Login successful!");
-      navigation.navigate("Home"); // ✅ Redirect to HomeScreen after login
+  
+      // ✅ Ensure state updates before navigating
+      setTimeout(() => {
+        navigation.replace("Home"); // ✅ FIX: Use replace to clear stack and avoid navigation issues
+      }, 500);
     } catch (error) {
       setLoading(false);
       console.error("Login Error:", error);
       Alert.alert("Login Failed", error.response?.data?.message || "Invalid credentials");
     }
   };
+  
 
   return (
     <View style={styles.container}>
