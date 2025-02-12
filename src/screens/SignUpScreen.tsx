@@ -14,7 +14,7 @@ import PhoneInput from "react-native-phone-number-input";
 import axios from "axios";
 
 // Set API URL using your local IP
-const API_URL = "http://192.168.0.21:5002/api/users";
+const API_URL = "http://192.168.1.93:5002/api/users";
 
 const SignUpScreen = ({ navigation }) => {
   const [name, setName] = useState("");
