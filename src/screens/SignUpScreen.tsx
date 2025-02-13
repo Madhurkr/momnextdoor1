@@ -10,11 +10,14 @@ import {
   ActivityIndicator,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import PhoneInput from "react-native-phone-number-input";
 import axios from "axios";
 
 // Set API URL using your local IP
+<<<<<<< Updated upstream
 const API_URL = "http://192.168.1.93:5002/api/users";
+=======
+const API_URL = "http://192.168.1.66:5002/api/users";
+>>>>>>> Stashed changes
 
 const SignUpScreen = ({ navigation }) => {
   const [name, setName] = useState("");
@@ -33,6 +36,7 @@ const SignUpScreen = ({ navigation }) => {
 
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const validatePassword = (password) => password.length >= 5 && /\d/.test(password);
+  const validatePhoneNumber = (number) => /^\d{10,15}$/.test(number); // Simple phone number validation
 
   const handleSignUp = async () => {
     if (!name || !country || (!phoneNumber && !email) || !userType || !password || !confirmPassword) {
@@ -41,6 +45,10 @@ const SignUpScreen = ({ navigation }) => {
     }
     if (contactMethod === "Email" && !validateEmail(email)) {
       Alert.alert("Error", "Please enter a valid email address.");
+      return;
+    }
+    if (contactMethod === "Phone" && !validatePhoneNumber(phoneNumber)) {
+      Alert.alert("Error", "Please enter a valid phone number (10-15 digits).");
       return;
     }
     if (!validatePassword(password)) {
@@ -111,18 +119,18 @@ const SignUpScreen = ({ navigation }) => {
   const pickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*", // Allows any file type
+        type: "*/*",
         copyToCacheDirectory: true,
       });
-  
+
       if (result.canceled) {
         Alert.alert("Cancelled", "No document was selected.");
         return;
       }
-  
-      setDocument(result.assets[0]); 
+
+      setDocument(result.assets[0]);
       Alert.alert("Success", `Document uploaded: ${result.assets[0].name}`);
-      console.log("Selected Document:", result.assets[0]); 
+      console.log("Selected Document:", result.assets[0]);
     } catch (error) {
       console.error("Document Picker Error:", error);
       Alert.alert("Error", "Failed to pick document.");
@@ -149,7 +157,13 @@ const SignUpScreen = ({ navigation }) => {
       </View>
 
       {contactMethod === "Phone" && (
-        <PhoneInput defaultValue={phoneNumber} defaultCode="US" layout="first" onChangeFormattedText={setPhoneNumber} />
+        <TextInput
+          style={styles.input}
+          placeholder="Phone Number"
+          keyboardType="phone-pad"
+          value={phoneNumber}
+          onChangeText={setPhoneNumber}
+        />
       )}
       {contactMethod === "Email" && (
         <TextInput style={styles.input} placeholder="Email" keyboardType="email-address" value={email} onChangeText={setEmail} />
@@ -161,6 +175,7 @@ const SignUpScreen = ({ navigation }) => {
       <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp} disabled={loading}>
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.signUpText}>Sign Up</Text>}
       </TouchableOpacity>
+
       <View style={styles.userTypeContainer}>
         <TouchableOpacity style={[styles.userTypeButton, userType === "Cook" ? styles.selected : null]} onPress={() => setUserType("Cook")}>
           <Text style={styles.toggleText}>I am a Cook</Text>
@@ -175,21 +190,10 @@ const SignUpScreen = ({ navigation }) => {
           <Text style={styles.uploadText}>Upload Documents</Text>
         </TouchableOpacity>
       )}
-
-      <Modal animationType="slide" transparent={true} visible={otpModalVisible}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalText}>Enter OTP sent to your email/phone:</Text>
-            <TextInput style={styles.input} placeholder="Enter OTP" keyboardType="numeric" value={otp} onChangeText={setOtp} />
-            <TouchableOpacity style={styles.modalButton} onPress={handleVerifyOTP}>
-              <Text style={styles.modalButtonText}>Verify OTP</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
+
 
 
 
