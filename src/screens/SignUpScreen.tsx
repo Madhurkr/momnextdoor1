@@ -13,11 +13,7 @@ import * as DocumentPicker from "expo-document-picker";
 import axios from "axios";
 
 // Set API URL using your local IP
-<<<<<<< Updated upstream
-const API_URL = "http://192.168.1.93:5002/api/users";
-=======
-const API_URL = "http://192.168.1.66:5002/api/users";
->>>>>>> Stashed changes
+const API_URL = "http://192.168.0.21:5002/api/users";
 
 const SignUpScreen = ({ navigation }) => {
   const [name, setName] = useState("");

@@ -11,11 +11,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
-<<<<<<< Updated upstream
-const API_URL = "http://192.168.1.93:5002/api/users"; // Replace with your API
-=======
-const API_URL = "http://192.168.1.66:5002/api/users"; // Replace with your API
->>>>>>> Stashed changes
+const API_URL = "http://192.168.0.21:5002/api/users"; // Replace with your API
 
 const WelcomeScreen = ({ navigation }) => {
   const [contactMethod, setContactMethod] = useState("Email"); // Default to email login
