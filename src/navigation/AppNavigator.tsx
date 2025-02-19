@@ -7,6 +7,8 @@ import { View, ActivityIndicator } from "react-native";
 import WelcomeScreen from "../screens/WelcomeScreen";
 import SignUpScreen from "../screens/SignUpScreen";
 import HomeScreen from "../screens/HomeScreen";
+import CustomerInfoScreen from "../screens/CustomerInfoScreen";
+
 
 const Stack = createStackNavigator();
 
@@ -36,6 +38,8 @@ const AppNavigator = () => {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
+        <Stack.Screen name="CustomerInfoScreen" component={CustomerInfoScreen} />
+
       </Stack.Navigator>
     </NavigationContainer>
   );
